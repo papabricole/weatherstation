@@ -1,4 +1,5 @@
 #include "SHT21.h"
+#include <Arduino.h>
 #include <Wire.h>
 
 #define SHT21_ADDRESS 0x40 // I2C address for the sensor
@@ -13,7 +14,7 @@ SHT21::SHT21()
 
 void SHT21::begin()
 {
-    Wire.begin(D1, D2);
+    Wire.begin(D5, D6);
 }
 
 void SHT21::reset()
@@ -33,7 +34,7 @@ float SHT21::getTemperature() const
     return (-46.85f + 175.72f / 65536.f * readSHT21(TRIGGER_TEMP_MEASURE_NOHOLD));
 }
 
-uint16_t SHT21::readSHT21(uint8_t command) const
+unsigned short SHT21::readSHT21(unsigned char command) const
 {
     Wire.beginTransmission(SHT21_ADDRESS);
     Wire.write(command);

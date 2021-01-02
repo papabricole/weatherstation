@@ -1,7 +1,5 @@
 #pragma once
 
-#include <Arduino.h>
-
 class SHT21 {
 public:
     SHT21();
@@ -12,6 +10,5 @@ public:
     float getTemperature() const;
 
 private:
-    uint16_t readSHT21(uint8_t command) const;
+    unsigned short readSHT21(unsigned char command) const;
 };
-
