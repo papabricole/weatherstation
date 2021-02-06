@@ -1,4 +1,4 @@
-#include "SHT21.h"
+#include <Adafruit_BMP280.h>
 #include <Adafruit_MQTT.h>
 #include <Adafruit_MQTT_Client.h>
 #include <ESP8266WiFi.h>
@@ -22,9 +22,11 @@ WiFiClient client;
 // Setup the MQTT client class by passing in the WiFi client and MQTT server and login details.
 Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, IO_USERNAME, IO_KEY);
 
+Adafruit_BMP280 bmp; // I2C 0x76
+
 // Functions
 void connect();
-void publish(float temperature, float humidity);
+void publish(float temperature, float pressure);
 void disconnect();
 
 void setup()
@@ -36,24 +38,34 @@ void setup()
     pinMode(D0, WAKEUP_PULLUP);
 #endif
 
-    // SHT21 sensor
-    SHT21 SHT21;
-    SHT21.begin();
-    const float temperature = SHT21.getTemperature();
-    const float humidity = SHT21.getHumidity();
-    SHT21.reset();
+    // BMP280
+    if (!bmp.begin(0x76)) {
+        Serial.println(F("Could not find a valid BMP280 sensor, check wiring!"));
+        while (1)
+            ;
+    }
+
+    /* Default settings from datasheet. */
+    bmp.setSampling(Adafruit_BMP280::MODE_NORMAL, /* Operating Mode. */
+        Adafruit_BMP280::SAMPLING_X2, /* Temp. oversampling */
+        Adafruit_BMP280::SAMPLING_X16, /* Pressure oversampling */
+        Adafruit_BMP280::FILTER_X16, /* Filtering. */
+        Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+
+    const float temperature = bmp.readTemperature();
+    const float pressure = bmp.readPressure() / 100.f;
 
     Serial.printf("Temperature = ");
     Serial.print(temperature);
     Serial.println(" *C");
 
-    Serial.printf("Humidity = ");
-    Serial.print(humidity);
+    Serial.printf("Pressure = ");
+    Serial.print(pressure);
     // Serial.println(" %RH");
 
     // connect to adafruit io
     connect();
-    publish(temperature, humidity);
+    publish(temperature, pressure);
     disconnect();
 
 #ifdef GOTO_SLEEP
@@ -100,11 +112,11 @@ void disconnect()
     WiFi.disconnect();
 }
 
-void publish(float temperature_data, float humidity_data)
+void publish(float temperature_data, float pressure_data)
 {
     // Setup feeds for temperature & humidity
     Adafruit_MQTT_Publish tfeed = Adafruit_MQTT_Publish(&mqtt, IO_USERNAME "/feeds/Temperature");
-    Adafruit_MQTT_Publish hfeed = Adafruit_MQTT_Publish(&mqtt, IO_USERNAME "/feeds/Humidity");
+    Adafruit_MQTT_Publish pfeed = Adafruit_MQTT_Publish(&mqtt, IO_USERNAME "/feeds/Pressure");
 
     // Publish data
     if (!tfeed.publish(temperature_data))
@@ -112,10 +124,10 @@ void publish(float temperature_data, float humidity_data)
     else
         Serial.println(F("Temperature published!"));
 
-    if (!hfeed.publish(humidity_data))
-        Serial.println(F("Failed to publish humidity"));
+    if (!pfeed.publish(pressure_data))
+        Serial.println(F("Failed to publish pressure"));
     else
-        Serial.println(F("Humidity published!"));
+        Serial.println(F("Pressure published!"));
 
     Serial.println();
 }
